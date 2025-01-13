@@ -1436,12 +1436,17 @@ namespace Practical.GenericDbContextEFCore.Extension
         public static void BulkInsertUpdateDeleteEntities<TInsert, TUpdate>(string connection, List<TInsert> insertedEntities, List<TUpdate> updatedEntities, List<Guid> deletedEntities, string tableSchemasAndName)
         {
             if (insertedEntities.IsNullOrEmpty() && updatedEntities.IsNullOrEmpty() && deletedEntities.IsNullOrEmpty()) return;
-            using (var sqlConn = new SqlConnection(connection)) {
+            using (var sqlConn = new SqlConnection(connection))
+            {
                 sqlConn.Open();
-                using (SqlTransaction trans = sqlConn.BeginTransaction()) {
-                    using (SqlCommand cmd = new SqlCommand(string.Empty, sqlConn, trans)) {
-                        try {
-                            if (updatedEntities != null && updatedEntities.Any()) {
+                using (SqlTransaction trans = sqlConn.BeginTransaction())
+                {
+                    using (SqlCommand cmd = new SqlCommand(string.Empty, sqlConn, trans))
+                    {
+                        try
+                        {
+                            if (updatedEntities != null && updatedEntities.Any())
+                            {
                                 var columns = GetEntityColumns<TUpdate>();
                                 var tempTableId = Guid.NewGuid().ToString().Replace("-", "");
                                 // create temp table
@@ -1455,7 +1460,8 @@ namespace Practical.GenericDbContextEFCore.Extension
                                 cmd.ExecuteNonQuery();
                             }
 
-                            if (deletedEntities != null && deletedEntities.Any()) {
+                            if (deletedEntities != null && deletedEntities.Any())
+                            {
                                 // create temp table
                                 var lookupModels = new List<Common.TempTableData>(deletedEntities.Distinct().Select(x => new Common.TempTableData { Id = x }).ToList());
                                 var tempTableId = Guid.NewGuid().ToString().Replace("-", "");
@@ -1470,17 +1476,20 @@ namespace Practical.GenericDbContextEFCore.Extension
                             }
 
                             // insert 
-                            if (insertedEntities != null && insertedEntities.Any()) {
+                            if (insertedEntities != null && insertedEntities.Any())
+                            {
                                 BulkInsertDataToTable(insertedEntities, tableSchemasAndName, sqlConn, trans, cmd);
                             }
 
                             trans.Commit();
                         }
-                        catch (Exception ex) {
+                        catch (Exception ex)
+                        {
                             trans.Rollback();
                             throw;
                         }
-                        finally {
+                        finally
+                        {
                             sqlConn.Close();
                         }
                     }
@@ -1505,12 +1514,16 @@ namespace Practical.GenericDbContextEFCore.Extension
             int rowEffects = 0;
 
             if (insertedEntities.IsNullOrEmpty() && updatedEntities.IsNullOrEmpty() && deletedEntities.IsNullOrEmpty()) return rowEffects;
-            using (var sqlConn = new SqlConnection(connection)) {
+            using (var sqlConn = new SqlConnection(connection))
+            {
                 await sqlConn.OpenAsync();
-                using (SqlTransaction trans = (SqlTransaction)await sqlConn.BeginTransactionAsync()) {
-                    using (SqlCommand cmd = new SqlCommand(string.Empty, sqlConn, trans)) {
+                using (SqlTransaction trans = (SqlTransaction)await sqlConn.BeginTransactionAsync())
+                {
+                    using (SqlCommand cmd = new SqlCommand(string.Empty, sqlConn, trans))
+                    {
                         try {
-                            if (updatedEntities != null && updatedEntities.Any()) {
+                            if (updatedEntities != null && updatedEntities.Any())
+                            {
                                 rowEffects = updatedEntities.Count();
                                 var columns = GetEntityColumns<TUpdate>();
                                 var tempTableId = Guid.NewGuid().ToString().Replace(CommonConstants.HyphenSymbol, CommonConstants.ReplaceEmpty);
@@ -1525,7 +1538,8 @@ namespace Practical.GenericDbContextEFCore.Extension
                                 await cmd.ExecuteNonQueryAsync();
                             }
 
-                            if (deletedEntities != null && deletedEntities.Any()) {
+                            if (deletedEntities != null && deletedEntities.Any())
+                            {
                                 rowEffects = deletedEntities.Count();
                                 // create temp table
                                 var lookupModels = new List<Common.TempTableData>(deletedEntities.Distinct().Select(x => new Common.TempTableData { Id = x }).ToList());
@@ -1541,7 +1555,8 @@ namespace Practical.GenericDbContextEFCore.Extension
                             }
 
                             // insert
-                            if (insertedEntities != null && insertedEntities.Any()) {
+                            if (insertedEntities != null && insertedEntities.Any())
+                            {
                                 rowEffects = insertedEntities.Count();
                                 await BulkInsertDataToTableAsync(insertedEntities, tableSchemasAndName, sqlConn, trans, cmd, batchSize);
                             }
@@ -1668,7 +1683,7 @@ namespace Practical.GenericDbContextEFCore.Extension
 
 
         /// <summary>
-        /// Bulk Insert Data To Table
+        /// Bulk Insert Data To Table. For large data, we will use temp table to insert data first and then copy data to main table
         /// </summary>
         /// <typeparam name="TEntity"></typeparam>
         /// <param name="entities"></param>
@@ -1685,12 +1700,8 @@ namespace Practical.GenericDbContextEFCore.Extension
                 var dataTable = new ListDataReader<TEntity>(entities, columns.ToArray());
                 var desTableColumns = GetDbTableColumns(tableInsert, sqlCommand);
                 if (!columns.Any()) return;
-                //var exceptColumns = desTableColumns.Except(columns, StringComparer.CurrentCultureIgnoreCase).ToList();
-                //if (!exceptColumns.IsNullOrEmpty())
-                //{
-                //    Console.WriteLine($"Columns mismatch in {typeof(TEntity).Name} : {string.Join(", ", exceptColumns)}");
-                //}
-                if (entities.Count > CommonConstants.MinimumRowForApplyTempTableInsert) {
+                if (entities.Count > CommonConstants.MinimumRowForApplyTempTableInsert)
+                {
                     var tempTableId = Guid.NewGuid().ToString().Replace(oldValue: "-", "");
                     string tableTempInsert = $"#{typeof(TEntity).Name}_{tempTableId}";
                     sqlCommand.CommandText = $@"SELECT TOP 0 {string.Join(", ", desTableColumns.Select(columnName => $"[{columnName}]"))} INTO {tableTempInsert} FROM {tableInsert}
@@ -1698,16 +1709,20 @@ namespace Practical.GenericDbContextEFCore.Extension
                                                   CREATE CLUSTERED INDEX [INDEX_{tableTempInsert}] ON {tableTempInsert} (RowNumber ASC);";
                     sqlCommand.ExecuteNonQuery();
                     // insert data to temp table
-                    using (SqlBulkCopy bulkcopy = new SqlBulkCopy(sqlConn, SqlBulkCopyOptions.Default, trans)) {
+                    using (SqlBulkCopy bulkcopy = new SqlBulkCopy(sqlConn, SqlBulkCopyOptions.Default, trans))
+                    {
                         bulkcopy.BulkCopyTimeout = CommonConstants.DbBulkUpdateTimeout;
                         bulkcopy.BatchSize = batchSize;
                         bulkcopy.DestinationTableName = tableTempInsert;
-                        foreach (var descCol in desTableColumns) {
+                        foreach (var descCol in desTableColumns)
+                        {
                             var sourceColumnName = columns.FirstOrDefault(x => string.Equals(x, descCol, StringComparison.InvariantCultureIgnoreCase));
-                            if (!string.IsNullOrWhiteSpace(sourceColumnName)) {
+                            if (!string.IsNullOrWhiteSpace(sourceColumnName))
+                            {
                                 bulkcopy.ColumnMappings.Add(sourceColumnName, descCol);
                             }
                         }
+                        //Save to temptable first
                         bulkcopy.WriteToServer(dataTable);
                         bulkcopy.Close();
                     }
@@ -1715,26 +1730,32 @@ namespace Practical.GenericDbContextEFCore.Extension
                     var pageCount = (double)entities.Count / batchSize;
                     int ceilingPage = (int)Math.Ceiling(pageCount);
 
-                    for (int currentPage = 0; currentPage < ceilingPage; currentPage++) {
+                    for (int currentPage = 0; currentPage < ceilingPage; currentPage++)
+                    {
                         var begin = currentPage * batchSize;
                         var end = begin + batchSize;
                         sqlCommand.CommandText = InsertEntityQuery(tableTempInsert, tableInsert, desTableColumns, begin, end);
-                        if (currentPage == ceilingPage) {
+                        if (currentPage == ceilingPage)
+                        {
                             sqlCommand.CommandText = $@"{sqlCommand.CommandText}
                                                          DROP TABLE {tableTempInsert}"; // drop table if there is no page left
                         }
                         sqlCommand.ExecuteNonQuery();
                     }
                 }
-                else {
+                else
+                {
                     // direct copy to main table if we have less records than 10 rows
-                    using (SqlBulkCopy bulkcopy = new SqlBulkCopy(sqlConn, SqlBulkCopyOptions.Default, trans)) {
+                    using (SqlBulkCopy bulkcopy = new SqlBulkCopy(sqlConn, SqlBulkCopyOptions.Default, trans))
+                    {
                         bulkcopy.BulkCopyTimeout = CommonConstants.DbBulkUpdateTimeout;
                         bulkcopy.BatchSize = entities.Count;
                         bulkcopy.DestinationTableName = tableInsert;
-                        foreach (var descCol in desTableColumns) {
+                        foreach (var descCol in desTableColumns)
+                        {
                             var sourceColumnName = columns.FirstOrDefault(x => string.Equals(x, descCol, StringComparison.InvariantCultureIgnoreCase));
-                            if (!string.IsNullOrWhiteSpace(sourceColumnName)) {
+                            if (!string.IsNullOrWhiteSpace(sourceColumnName))
+                            {
                                 bulkcopy.ColumnMappings.Add(sourceColumnName, descCol);
                             }
                         }
