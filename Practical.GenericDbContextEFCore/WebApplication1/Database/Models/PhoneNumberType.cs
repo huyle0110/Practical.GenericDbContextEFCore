@@ -1,0 +1,35 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
+
+namespace Practical.GenericDbContextEFCore.Database.Models;
+
+/// <summary>
+/// Type of phone number of a person.
+/// </summary>
+[Table("PhoneNumberType", Schema = "Person")]
+public partial class PhoneNumberType
+{
+    /// <summary>
+    /// Primary key for telephone number type records.
+    /// </summary>
+    [Key]
+    public int PhoneNumberTypeID { get; set; }
+
+    /// <summary>
+    /// Name of the telephone number type
+    /// </summary>
+    [StringLength(50)]
+    public string Name { get; set; } = null!;
+
+    /// <summary>
+    /// Date and time the record was last updated.
+    /// </summary>
+    [Column(TypeName = "datetime")]
+    public DateTime ModifiedDate { get; set; }
+
+    [InverseProperty("PhoneNumberType")]
+    public virtual ICollection<PersonPhone> PersonPhone { get; set; } = new List<PersonPhone>();
+}
